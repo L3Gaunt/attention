@@ -6,6 +6,7 @@
 > with explanation, it can offer plausible and meaningful
 > interpretations. (Abnar and Zuidema, 2020)
 
+
 Attention is the key mechanism of the transformer architecture that
 powers GPT and other LLMs. This project exposes the attention
 weights of an LLM run, aggregated into a single matrix by averaging across layers and attention heads.
@@ -27,7 +28,7 @@ weights for selected text are visualized:
 
 ```sh
 $ poetry install
-$ poetry run flask --app attention run
+$ poetry run flask --app attention run --port 8004 # the standard flask port is protected on Mac OS
 ```
 
-Once it's running, you can access the demo at `http://127.0.0.1:5000/static/index.html`.
+Once it's running, you can access the demo at `http://127.0.0.1:8004/static/index.html`.
