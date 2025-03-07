@@ -30,8 +30,8 @@ def heterogenous_stack(vecs):
         for v in vecs
     ])
 
-tokenizer = AutoTokenizer.from_pretrained('gpt2')
-model = AutoModelForCausalLM.from_pretrained('gpt2')
+tokenizer = AutoTokenizer.from_pretrained('HuggingFaceTB/SmolLM2-135M') # base model - for instruct model, use proper chat format
+model = AutoModelForCausalLM.from_pretrained('HuggingFaceTB/SmolLM2-135M')
 
 def decode(tokens):
     '''Turn tokens into text with mapping index'''

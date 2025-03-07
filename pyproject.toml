@@ -8,9 +8,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-transformers = "^4.29.0"
+transformers = "^4.49.0"
 torch = "^2.0.1"
 flask = "^2.3.2"
+huggingface = "^0.0.1"
+safetensors = "^0.5.3"
 
 
 [build-system]
