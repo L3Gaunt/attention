@@ -1,5 +1,5 @@
 from flask import Flask
-from .attention import get_completion
+from .attention import get_prompt_attention
 import json
 
 app = Flask(__name__)
@@ -60,7 +60,8 @@ a point. Then:
 with multiplicity 1 (we say: the intersection multiplicity of C1 and C2 at P is 1).
 """.strip()
 
-result, tokenized, attn_m = get_completion(prompt)
+# Process only the prompt, no completion generation
+result, tokenized, attn_m = get_prompt_attention(prompt)
 sparse = attn_m.to_sparse()
 
 @app.route("/attention")

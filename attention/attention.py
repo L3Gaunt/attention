@@ -43,6 +43,53 @@ def decode(tokens):
         chunks.append(text)
     return full_text, chunks
 
+def get_prompt_attention(prompt):
+    '''Process only the prompt tokens and their attention patterns without generating completions'''
+    tokens = tokenizer.encode(prompt, return_tensors="pt")
+    
+    # Run the model with just the prompt - no generation, with no gradient tracking
+    with torch.no_grad():
+        outputs = model(
+            tokens,
+            output_attentions=True,
+            return_dict=True
+        )
+    
+    # Get attention matrices from the model output
+    attention = outputs.attentions  # This is a tuple of attention tensors for each layer
+    
+    # Process attention for visualization 
+    attn_matrices = []
+    
+    # First add self-attention (identity matrix) for each token
+    for i in range(len(tokens[0])):
+        row = torch.zeros(len(tokens[0]))
+        row[i] = 1.0  # Self-attention
+        attn_matrices.append(row)
+    
+    # Process token attention across all layers and heads
+    layer_attns = []
+    for layer_idx, layer_attn in enumerate(attention):
+        # Average over heads
+        layer_avg = layer_attn.squeeze(0).mean(dim=0)
+        layer_attns.append(layer_avg)
+    
+    # Average over all layers
+    if layer_attns:
+        combined_attn = torch.stack(layer_attns).mean(dim=0)
+        
+        # For each token, add its attention pattern to our matrix
+        for i in range(len(tokens[0])):
+            attn_matrices.append(combined_attn[i])
+    
+    # Create attention matrix from all the attention vectors
+    attn_m = heterogenous_stack(attn_matrices)
+    
+    # Get token text for display
+    decoded, tokenized = decode(tokens[0])
+    
+    return decoded, tokenized, attn_m
+
 def get_completion(prompt):
     '''Get full text, token mapping, and attention matrix for a completion'''
     tokens = tokenizer.encode(prompt, return_tensors="pt")
