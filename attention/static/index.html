@@ -8,7 +8,7 @@
       p {
         width: 700px;
         margin: 1em auto;
-        color: #4d4d4d;
+        color: #2a2a2a;
         font-family: sans-serif;
         font-size: 15px;
         line-height: 1.5em;
@@ -20,11 +20,11 @@
         margin-bottom: 0;
       }
       span {
-        background: #d2f4d3;
+        background: #98e89a; /* Darker green for higher contrast */
       }
       span.prompt {
         --attention: 0;
-        background-color: rgba(185, 225, 244, var(--attention));
+        background-color: rgba(68, 145, 190, var(--attention)); /* Darker blue for higher contrast */
       }
     </style>
   </head>
@@ -59,7 +59,8 @@
           const attn_vec = math.multiply(vec, attn_m)
           Array.from(content.children).forEach((node, i) => {
             const attn = attn_vec[i]
-            node.style.setProperty('--attention', Math.min(1, attn * 5).toFixed(2))
+            // Increased multiplier for stronger visual effect
+            node.style.setProperty('--attention', Math.min(1, attn * 10).toFixed(2))
           })
         } else {
           Array.from(content.children).forEach((node, i) => {
