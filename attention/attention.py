@@ -61,11 +61,6 @@ def get_prompt_attention(prompt):
     # Process attention for visualization 
     attn_matrices = []
     
-    # First add self-attention (identity matrix) for each token
-    for i in range(len(tokens[0])):
-        row = torch.zeros(len(tokens[0]))
-        row[i] = 1.0  # Self-attention
-        attn_matrices.append(row)
     
     # Process token attention across all layers and heads
     layer_attns = []

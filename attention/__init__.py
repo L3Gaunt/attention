@@ -1,6 +1,7 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from .attention import get_prompt_attention
 import json
+import os
 
 app = Flask(__name__)
 
@@ -44,7 +45,7 @@ m! (dm −(d −deg f )m)+cm−1 (dm−1 −(d −deg f )m−1)
 +terms of order at most dm−2
 = deg X
 m! ·m deg f ·dm−1 +terms of order at most dm−2.
-We conclude that deg(X ∩Z(f )) = deg X ·deg f . 
+We conclude that deg(X ∩Z(f )) = deg X ·deg f . 
 Example 6.2.2. Let C1 and C2 be two curves in P2 without common irreducible com-
 ponents. These curves are then given as the zero locus of homogeneous polynomials of
 degrees d1 and d2, respectively. We conclude that deg(C1 ∩C2) = d1 ·d2 by B ́ezout’s the-
@@ -72,3 +73,7 @@ def attention_view():
         'attn_indices': indices.T.numpy().tolist(),
         'attn_values': values.numpy().tolist(),
     })
+
+@app.route("/")
+def root():
+    return send_from_directory('static', 'index.html')
