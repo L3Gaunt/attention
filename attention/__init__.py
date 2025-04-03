@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from .attention import get_prompt_attention
 import json
 import os
@@ -61,13 +61,19 @@ a point. Then:
 with multiplicity 1 (we say: the intersection multiplicity of C1 and C2 at P is 1).
 """.strip()
 
-# Process only the prompt, no completion generation
-result, tokenized, attn_m = get_prompt_attention(prompt)
-sparse = attn_m.to_sparse()
-
+# Will process prompt dynamically in the route
 @app.route("/attention")
 def attention_view():
+    # Get prompt from request or use default if not provided
+    user_prompt = request.args.get('prompt', default=prompt)
+    
+    # Process attention for the current prompt
+    result, tokenized, attn_m = get_prompt_attention(user_prompt)
+    sparse = attn_m.to_sparse()
+    
+    # Extract indices and values for visualization
     indices, values = sparse.indices(), sparse.values()
+    
     return json.dumps({
         'tokens': tokenized,
         'attn_indices': indices.T.numpy().tolist(),
