@@ -33,10 +33,8 @@
     <p id="content"></p>
     <script type="text/javascript">
       const content = document.querySelector('#content')
-      const isPrompt = row => {
-        const p = row.filter(x => x).length === 1
-        return p
-      }
+      // All tokens should be able to show attention for highlighting
+      const isPrompt = () => true
       const fromSparse = (size, indices, values) => {
         let xs = Array.from({length: size}, () => Array.from({length: size}, () => 0))
         indices.forEach(([i, j], x) => {
