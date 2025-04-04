@@ -26,62 +26,264 @@
         --attention: 0;
         background-color: rgba(68, 145, 190, var(--attention)); /* Darker blue for higher contrast */
       }
+      .range-slider-container {
+        width: 700px;
+        margin: 2em auto;
+        position: relative;
+        height: 50px;
+      }
+      .range-slider-track {
+        position: absolute;
+        width: 100%;
+        height: 6px;
+        background-color: #e0e0e0;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 3px;
+      }
+      .range-slider-rail {
+        position: absolute;
+        height: 6px;
+        background-color: #4491be;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 3px;
+      }
+      .range-slider-handle {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: #ffffff;
+        border: 2px solid #4491be;
+        border-radius: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        z-index: 2;
+      }
+      .layer-values {
+        display: flex;
+        justify-content: space-between;
+        width: 700px;
+        margin: 0 auto;
+      }
     </style>
   </head>
   <body>
     <h1>Attention Tracing</h1>
+    <div class="layer-values">
+      <div>Start Layer: <span id="start_layer_value">0</span></div>
+      <div>End Layer: <span id="end_layer_value">0</span></div>
+    </div>
+    <div class="range-slider-container">
+      <div class="range-slider-track"></div>
+      <div class="range-slider-rail" id="slider-rail"></div>
+      <div class="range-slider-handle" id="start-handle"></div>
+      <div class="range-slider-handle" id="end-handle"></div>
+    </div>
     <p id="content"></p>
     <script type="text/javascript">
-      const content = document.querySelector('#content')
-      // All tokens should be able to show attention for highlighting
-      const isPrompt = () => true
-      const fromSparse = (size, indices, values) => {
-        let xs = Array.from({length: size}, () => Array.from({length: size}, () => 0))
-        indices.forEach(([i, j], x) => {
-          xs[i][j] = values[x]
-        })
-        return xs
+  const content = document.querySelector('#content');
+  const startLayerValue = document.getElementById('start_layer_value');
+  const endLayerValue = document.getElementById('end_layer_value');
+  const startHandle = document.getElementById('start-handle');
+  const endHandle = document.getElementById('end-handle');
+  const sliderRail = document.getElementById('slider-rail');
+  const sliderContainer = document.querySelector('.range-slider-container');
+  
+  let numLayers = 0;
+  let currentStartLayer = 0;
+  let currentEndLayer = 0;
+  let tokens = [];
+  let attn_m = [];
+  let currentSelection = null;
+  let sliderWidth = sliderContainer.offsetWidth - 20; // Adjust for handle width
+
+  const isPrompt = () => true;
+
+  const fromSparse = (size, indices, values) => {
+    let xs = Array.from({length: size}, () => Array.from({length: size}, () => 0));
+    indices.forEach(([i, j], x) => {
+      xs[i][j] = values[x];
+    });
+    return xs;
+  };
+
+  // Save the current selection
+  const saveSelection = () => {
+    if (!window.getSelection().isCollapsed) {
+      const sel = window.getSelection();
+      const fromNode = sel.anchorNode.parentNode;
+      const toNode = sel.extentNode.parentNode;
+      const fromIdx = Array.from(content.children).indexOf(fromNode);
+      const toIdx = Array.from(content.children).indexOf(toNode);
+      const range = [fromIdx, toIdx];
+      range.sort((a, b) => a - b);
+      currentSelection = {
+        fromIdx: range[0],
+        toIdx: range[1]
+      };
+      return currentSelection;
+    }
+    return currentSelection;
+  };
+
+  const redraw = () => {
+    const selection = saveSelection();
+    
+    if (selection) {
+      const vec = tokens.map((x, i) => (i >= selection.fromIdx && i <= selection.toIdx) ? 1 : 0);
+      const attn_vec = math.multiply(vec, attn_m);
+      
+      Array.from(content.children).forEach((node, i) => {
+        const attn = attn_vec[i];
+        node.style.setProperty('--attention', Math.min(1, attn * 10).toFixed(2));
+      });
+    } else {
+      Array.from(content.children).forEach((node) => {
+        node.style.setProperty('--attention', '0');
+      });
+    }
+  };
+
+  function updateSliderPositions() {
+    // Calculate positions based on layer values
+    const startPos = (currentStartLayer / (numLayers - 1)) * sliderWidth;
+    const endPos = (currentEndLayer / (numLayers - 1)) * sliderWidth;
+    
+    // Update handle positions
+    startHandle.style.left = startPos + 'px';
+    endHandle.style.left = endPos + 'px';
+    
+    // Update the rail (colored portion between handles)
+    sliderRail.style.left = startPos + 'px';
+    sliderRail.style.width = (endPos - startPos) + 'px';
+    
+    // Update text values
+    startLayerValue.textContent = currentStartLayer;
+    endLayerValue.textContent = currentEndLayer;
+  }
+
+  function fetchAttention(startLayer, endLayer) {
+    let url = '/attention';
+    if (startLayer !== undefined && endLayer !== undefined) {
+      url += `?start_layer=${startLayer}&end_layer=${endLayer}`;
+    }
+    fetch(url).then(async res => {
+      const data = await res.json();
+      numLayers = data.num_layers || 0;
+      if (startLayer === undefined || endLayer === undefined) {
+        currentStartLayer = 0;
+        currentEndLayer = numLayers - 1;
+      } else {
+        currentStartLayer = startLayer;
+        currentEndLayer = endLayer;
       }
-      let tokens = []
-      let attn_m = []
-      const redraw = () => {
-        if (!window.getSelection().isCollapsed) {
-          const sel = window.getSelection()
-          const fromNode = sel.anchorNode.parentNode
-          const toNode = sel.extentNode.parentNode
-          const fromIdx = Array.from(content.children).indexOf(fromNode)
-          const toIdx = Array.from(content.children).indexOf(toNode)
-          const range = [fromIdx, toIdx]
-          range.sort((a, b) => a - b)
-          const vec = tokens.map((x, i) => (i >= range[0] && i <= range[1]) ? 1 : 0)
-          const attn_vec = math.multiply(vec, attn_m)
-          Array.from(content.children).forEach((node, i) => {
-            const attn = attn_vec[i]
-            // Increased multiplier for stronger visual effect
-            node.style.setProperty('--attention', Math.min(1, attn * 10).toFixed(2))
-          })
+      
+      // Initialize slider after we know the layer count
+      sliderWidth = sliderContainer.offsetWidth - 20;
+      updateSliderPositions();
+      tokens = data.tokens;
+      attn_m = fromSparse(tokens.length, data.attn_indices, data.attn_values);
+      content.innerHTML = '';
+      data.tokens.forEach((t, i) => {
+        const token = document.createElement('span');
+        token.innerText = t;
+        if (isPrompt(attn_m[i])) {
+          token.classList.add('prompt');
+        }
+        content.appendChild(token);
+      });
+      redraw();
+    });
+  }
+
+  // Initial fetch with all layers
+  fetchAttention();
+
+  // Handle drag functionality for slider handles
+  let isDragging = false;
+  let currentHandle = null;
+
+  function initializeHandles() {
+    // Set initial positions
+    startHandle.style.left = '0px';
+    endHandle.style.left = sliderWidth + 'px';
+    sliderRail.style.left = '0px';
+    sliderRail.style.width = sliderWidth + 'px';
+    
+    // Add event listeners for handle dragging
+    startHandle.addEventListener('mousedown', e => {
+      isDragging = true;
+      currentHandle = 'start';
+      e.preventDefault();
+    });
+    
+    endHandle.addEventListener('mousedown', e => {
+      isDragging = true;
+      currentHandle = 'end';
+      e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      
+      const rect = sliderContainer.getBoundingClientRect();
+      let position = Math.max(0, Math.min(sliderWidth, e.clientX - rect.left));
+      const layerPosition = Math.round((position / sliderWidth) * (numLayers - 1));
+      
+      if (currentHandle === 'start') {
+        if (layerPosition <= currentEndLayer) {
+          currentStartLayer = layerPosition;
         } else {
-          Array.from(content.children).forEach((node, i) => {
-            node.style.setProperty('--attention', '0')
-          })
+          currentStartLayer = currentEndLayer;
+        }
+      } else if (currentHandle === 'end') {
+        if (layerPosition >= currentStartLayer) {
+          currentEndLayer = layerPosition;
+        } else {
+          currentEndLayer = currentStartLayer;
         }
       }
-      document.addEventListener('mousemove', redraw)
-      document.addEventListener('mouseup', redraw)
-      fetch('/attention').then(async res => {
-        const data = await res.json()
-        console.log(data)
-        tokens = data.tokens
-        attn_m = fromSparse(tokens.length, data.attn_indices, data.attn_values)
-        data.tokens.forEach((t, i) => {
-          const token = document.createElement('span')
-          token.innerText = t
-          if (isPrompt(attn_m[i])) {
-            token.classList.add('prompt')
-          }
-          content.appendChild(token)
-        })
-      })
-    </script>
+      
+      updateSliderPositions();
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        fetchAttention(currentStartLayer, currentEndLayer);
+      }
+    });
+    
+    // Allow clicking on the track to move the nearest handle
+    sliderContainer.addEventListener('click', e => {
+      if (e.target === startHandle || e.target === endHandle) return;
+      
+      const rect = sliderContainer.getBoundingClientRect();
+      let position = Math.max(0, Math.min(sliderWidth, e.clientX - rect.left));
+      const layerPosition = Math.round((position / sliderWidth) * (numLayers - 1));
+      
+      // Determine which handle is closer
+      const startDistance = Math.abs(layerPosition - currentStartLayer);
+      const endDistance = Math.abs(layerPosition - currentEndLayer);
+      
+      if (startDistance <= endDistance) {
+        currentStartLayer = Math.min(layerPosition, currentEndLayer);
+      } else {
+        currentEndLayer = Math.max(layerPosition, currentStartLayer);
+      }
+      
+      updateSliderPositions();
+      fetchAttention(currentStartLayer, currentEndLayer);
+    });
+  }
+
+  // Initialize the handles after the page loads
+  window.addEventListener('load', initializeHandles);
+
+  document.addEventListener('mousemove', redraw);
+  document.addEventListener('mouseup', redraw);
+  </script>
   </body>
 </html>

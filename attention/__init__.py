@@ -66,9 +66,13 @@ with multiplicity 1 (we say: the intersection multiplicity of C1 and C2 at P is 
 def attention_view():
     # Get prompt from request or use default if not provided
     user_prompt = request.args.get('prompt', default=prompt)
+    start_layer = int(request.args.get('start_layer', 0))
+    end_layer = request.args.get('end_layer')
+    if end_layer is not None:
+        end_layer = int(end_layer)
     
-    # Process attention for the current prompt
-    result, tokenized, attn_m = get_prompt_attention(user_prompt)
+    # Process attention for the current prompt with specified layers
+    result, tokenized, attn_m, num_layers = get_prompt_attention(user_prompt, start_layer, end_layer)
     sparse = attn_m.to_sparse()
     
     # Extract indices and values for visualization
@@ -78,6 +82,7 @@ def attention_view():
         'tokens': tokenized,
         'attn_indices': indices.T.numpy().tolist(),
         'attn_values': values.numpy().tolist(),
+        'num_layers': num_layers,
     })
 
 @app.route("/")

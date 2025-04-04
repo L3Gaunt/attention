@@ -43,7 +43,7 @@ def decode(tokens):
         chunks.append(text)
     return full_text, chunks
 
-def get_prompt_attention(prompt):
+def get_prompt_attention(prompt, start_layer=0, end_layer=None):
     '''Process only the prompt tokens and their attention patterns without generating completions'''
     tokens = tokenizer.encode(prompt, return_tensors="pt")
     
@@ -56,15 +56,19 @@ def get_prompt_attention(prompt):
         )
     
     # Get attention matrices from the model output
-    attention = outputs.attentions  # This is a tuple of attention tensors for each layer
+    attention = outputs.attentions
+    if end_layer is None:
+        end_layer = model.config.num_hidden_layers - 1
     
     # Process attention for visualization 
     attn_matrices = []
     
-    
-    # Process token attention across all layers and heads
+    # Process token attention across selected layers
     layer_attns = []
-    for layer_idx, layer_attn in enumerate(attention):
+    for layer_idx in range(start_layer, end_layer + 1):
+        if layer_idx >= len(attention):
+            break  # Prevent index out of range
+        layer_attn = attention[layer_idx]
         # Average over heads
         layer_avg = layer_attn.squeeze(0).mean(dim=0)
         layer_attns.append(layer_avg)
@@ -82,8 +86,7 @@ def get_prompt_attention(prompt):
     
     # Get token text for display
     decoded, tokenized = decode(tokens[0])
-    
-    return decoded, tokenized, attn_m
+    return decoded, tokenized, attn_m, model.config.num_hidden_layers
 
 def get_completion(prompt):
     '''Get full text, token mapping, and attention matrix for a completion'''
